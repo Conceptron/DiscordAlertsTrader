@@ -1,0 +1,46 @@
+{
+    "instrument-type": "Equity",
+    "symbol": "AAPL",
+    "id": 726,
+    "is-index": false,
+    "listed-market": "XNAS",
+    "description": "APPLE INC",
+    "lendability": "Easy To Borrow",
+    "market-time-instrument-collection": "Equity",
+    "is-closing-only": false,
+    "is-options-closing-only": false,
+    "active": true,
+    "is-illiquid": false,
+    "is-etf": false,
+    "streamer-symbol": "AAPL",
+    "borrow-rate": 0.0,
+    "cusip": "037833100",
+    "short-description": "APPLE INC",
+    "halted-at": null,
+    "stops-trading-at": null,
+    "is-fractional-quantity-eligible": true,
+    "tick-sizes": [
+        {
+            "value": 0.0001,
+            "threshold": 1.0,
+            "symbol": null
+        },
+        {
+            "value": 0.01,
+            "threshold": null,
+            "symbol": null
+        }
+    ],
+    "option-tick-sizes": [
+        {
+            "value": 0.01,
+            "threshold": 3.0,
+            "symbol": null
+        },
+        {
+            "value": 0.05,
+            "threshold": null,
+            "symbol": null
+        }
+    ]
+}

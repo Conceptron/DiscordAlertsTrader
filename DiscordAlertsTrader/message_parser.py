@@ -23,7 +23,7 @@ def parse_trade_alert(msg, asset=None):
             action, quantity, ticker, strike, expDate, price = match.groups()
         else:
             action, quantity, ticker, expDate, strike, price = match.groups()
-            
+
         asset_type = 'option' if strike and expDate else 'stock'
         symbol =  ticker.upper()
         order = {
@@ -35,7 +35,7 @@ def parse_trade_alert(msg, asset=None):
         }
         str_ext = ""
         if asset_type == 'option':
-            # fix missing strike, assume Call            
+            # fix missing strike, assume Call
             if "c" not in strike.lower() and "p" not in strike.lower():
                 strike = strike + "c"
                 order['strike'] = strike.upper()
@@ -43,22 +43,22 @@ def parse_trade_alert(msg, asset=None):
 
             order['strike'] = strike.upper()
             order['expDate'] = expDate
-            order['Symbol'] = fix_index_symbols(symbol)            
+            order['Symbol'] = fix_index_symbols(symbol)
             order['Symbol'] = make_optionID(**order)
 
         risk_level = parse_risk(msg)
         order['risk'] = risk_level
-        
+
         pars = []
         for el in [action, quantity, ticker, strike, expDate]:
             if el is not None:
                 pars.append(el)
-        pars = " ".join(pars)  
+        pars = " ".join(pars)
         pars += f" @{price}"
         for el in [risk_level, str_ext]:
             if el is not None:
                 pars += f" {el}"
-        
+
         if action.upper() in ["BTO", "STO"]:
             if "avg" in msg.lower() or "average" in msg.lower():
                 avg_price, _ = parse_avg(msg)
@@ -66,11 +66,11 @@ def parse_trade_alert(msg, asset=None):
                 order["avg"] = avg_price
             else:
                 order["avg"] = None
-                
+
             order['open_trailingstop'] = trailingstop(msg)
             if order.get('open_trailingstop'):
                 pars += f" {order['open_trailingstop']}"
-                
+
             try:
                 pt1_v, pt2_v, pt3_v, sl_v = parse_exits(msg)
                 n_pts = 3 if pt3_v else 2 if pt2_v else 1 if pt1_v else 0
@@ -82,14 +82,14 @@ def parse_trade_alert(msg, asset=None):
                 order["PT1"] =  None
                 order["PT2"] = None
                 order["PT3"] = None
-                order["SL"] = None            
+                order["SL"] = None
 
         elif action.upper() in ["STC", "BTC"]:
             xamnt = parse_sell_ratio_amount(msg, asset_type)
             if order["Qty"] is None:
                 pars = pars + f" xamount: {xamnt}"
             order["xQty"] = xamnt
-        
+
         return pars, order
     else:
         # try exit update
@@ -97,10 +97,10 @@ def parse_trade_alert(msg, asset=None):
         match = re.search(pattern, msg, re.IGNORECASE)
         if match:
             action, ticker, strike, expDate = match.groups()
-            
+
             asset_type = 'option' if strike and expDate else 'stock'
             symbol =  ticker.upper()
-        
+
             order = {
             'action': "ExitUpdate",
             'Symbol': symbol,
@@ -108,7 +108,7 @@ def parse_trade_alert(msg, asset=None):
             }
             str_ext = f'ExitUpdate: {symbol} '
             if asset_type == 'option':
-                # fix missing strike, assume Call            
+                # fix missing strike, assume Call
                 if "c" not in strike.lower() and "p" not in strike.lower():
                     strike = strike + "c"
                     order['strike'] = strike.upper()
@@ -116,7 +116,7 @@ def parse_trade_alert(msg, asset=None):
 
                 order['strike'] = strike.upper()
                 order['expDate'] = expDate
-                order['Symbol'] = fix_index_symbols(symbol)            
+                order['Symbol'] = fix_index_symbols(symbol)
                 order['Symbol'] = make_optionID(**order)
                 str_ext += f"{strike.upper()} {expDate}"
             order, str_ext = make_order_exits(order, msg, str_ext, asset_type)
@@ -124,36 +124,36 @@ def parse_trade_alert(msg, asset=None):
         return None, None
 
 def fix_index_symbols(symbol):
-    if symbol.upper() == "SPX": 
+    if symbol.upper() == "SPX":
         symbol = "SPXW"
     elif symbol.upper() == "NDX":
         symbol = "NDXP"
     return symbol
-    
+
 
 def trailingstop(msg):
     # inverse TSbuy
     expc = r"invTSbuy [:]?\s*([\d]{1,2}[%]?)"
     match = re.search(expc, msg, re.IGNORECASE)
     if match:
-        ts = match.groups()[0]            
+        ts = match.groups()[0]
         return f"invTSbuy {ts}"
     exprs = ['tsbuy', 'trailstop', 'trailingstop', 'trailing stop']
     for exp in exprs:
         expc = exp + r"[:]?\s*([\d]{1,2}[%]?)"
         match = re.search(expc, msg, re.IGNORECASE)
         if match:
-            ts = match.groups()[0]            
+            ts = match.groups()[0]
             return f"TSbuy {ts}"
 
 
-    
+
     return False
 def ordersymb_to_str(symbol):
     "Symbol format AAA_YYMMDDCCPXXX"
     if "_" in symbol:
         # option
-        exp = r"(\w+)_(\d{6})([CP])([\d.]+)"        
+        exp = r"(\w+)_(\d{6})([CP])([\d.]+)"
         match = re.search(exp, symbol, re.IGNORECASE)
         if match:
             symbol, date, type, strike = match.groups()
@@ -185,9 +185,9 @@ def set_exit_price_type(exit_price, order):
     if exit_price is None:
         return exit_price
     if (isinstance(exit_price, str) and ("TS" in exit_price or "%" in exit_price)) or \
-        (isinstance(exit_price, str) and not exit_price): 
+        (isinstance(exit_price, str) and not exit_price):
         return exit_price
-    if isinstance(exit_price, str): 
+    if isinstance(exit_price, str):
         exit_price = eval(exit_price)
 
     price_strk = float(order['strike'][:-1])
@@ -260,7 +260,7 @@ def parse_mark_option(msg):
     if mark_inf is None:
         re_mark = re.compile("(?:@|at)[a-zA-Z]?[ ]*[$]?[ ]*([,]?\d+(?:\.\d+)?)")
         mark_inf = re_mark.search(msg)
-        
+
     if mark_inf is None:
         date = parse_date(msg)
         re_mark = re.compile(f"{date}[ ]*[$]?[ ]*([.]?\d+(?:\.\d+)?)")
@@ -303,7 +303,7 @@ def parse_date(msg):
             dt_2 = date_inf.groups()[2]
             date = f"{dt_1}/{dt_2[2:]}"
             return date
-        
+
     re_date = re.compile("(\d{1,2}\/\d{1,2}(?:\/\d{1,2})?)")
     date_inf = re_date.search(msg)
     if date_inf is None:
@@ -343,12 +343,12 @@ def parse_avg(msg):
     return avg, avg_inf.span()
 
 def parse_exits_vals(msg, expr):
-    re_comp= re.compile("\s" +expr + "[:]?[ ]*[$]*(\d*[\.]*[\d]*[%]?)(TS[\d+\.]*[%]?)?", re.IGNORECASE) 
-    exit_inf = re_comp.search(msg) 
+    re_comp= re.compile("\s" +expr + "[:]?[ ]*[$]*(\d*[\.]*[\d]*[%]?)(TS[\d+\.]*[%]?)?", re.IGNORECASE)
+    exit_inf = re_comp.search(msg)
 
     if exit_inf is None:
         re_comp= re.compile("(\s" + expr.lower() + "[:]?[ ]*[$]*(\d*[\.]*[\d]*[%]?))", re.IGNORECASE)
-        exit_inf = re_comp.search(msg)        
+        exit_inf = re_comp.search(msg)
 
         if exit_inf is None or exit_inf.groups()[-1] =='':
             return None
@@ -358,10 +358,10 @@ def parse_exits_vals(msg, expr):
     exit_v = exit_inf.group(1) + (exit_inf.group(2) if exit_inf.group(2) else "")
     return exit_v
 
-def parse_unit_amount(msg):    
+def parse_unit_amount(msg):
     act = parse_action(msg)
     Symbol, _ = parse_Symbol(msg, act)
-    
+
     exprs = f"{act}\s+(\d+) {Symbol}"
     re_comp= re.compile(exprs, re.IGNORECASE)
     amnt_inf = re_comp.search(msg)
@@ -369,7 +369,7 @@ def parse_unit_amount(msg):
         return round(eval(amnt_inf.groups()[0]), 2)
     return
 
-def parse_sell_ratio_amount(msg, asset):    
+def parse_sell_ratio_amount(msg, asset):
     exprs = "(?:sold|sell) (\d\/\d)"
     re_comp= re.compile(exprs, re.IGNORECASE)
     amnt_inf = re_comp.search(msg)
@@ -444,6 +444,7 @@ def make_optionID(Symbol:str, expDate:str, strike=str, **kwarg):
     strike, opt_type = float(strike[:-1]), strike[-1]
     date_elms = expDate.split("/")
     date_frm = f"{int(date_elms[0]):02d}{int(date_elms[1]):02d}"
+    # todo: fix year, it might be the previous year as well if running on old data
     if len(date_elms) == 2: # MM/DD, year = actual year
         year = str(datetime.today().year)[-2:]
         date_frm = date_frm + year
@@ -457,7 +458,7 @@ def make_optionID(Symbol:str, expDate:str, strike=str, **kwarg):
 
 
 def parse_symbol(symbol:str):
-    # symbol: APPL_092623P426    
+    # symbol: APPL_092623P426
     match = re.match(r"^([A-Z]+)_(\d{2})(\d{2})(\d{2})([CP])((?:\d+)(?:\.\d+)?)", symbol)
 
     if match:
@@ -470,4 +471,3 @@ def parse_symbol(symbol:str):
             "strike": eval(match.group(6))
             }
         return option
-    

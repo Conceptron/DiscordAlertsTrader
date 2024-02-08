@@ -1,0 +1,30 @@
+{
+    "AAPL": {
+        "eventSymbol": "AAPL",
+        "eventTime": 0,
+        "sequence": 0,
+        "timeNanoPart": 0,
+        "bidTime": 0,
+        "bidExchangeCode": "Q",
+        "bidPrice": 189.2,
+        "bidSize": 1.0,
+        "askTime": 0,
+        "askExchangeCode": "Q",
+        "askPrice": 189.23,
+        "askSize": 27.0
+    },
+    ".AAPL240209C95": {
+        "eventSymbol": ".AAPL240209C95",
+        "eventTime": 0,
+        "sequence": 0,
+        "timeNanoPart": 0,
+        "bidTime": 0,
+        "bidExchangeCode": "",
+        "bidPrice": 94.05,
+        "bidSize": "NaN",
+        "askTime": 0,
+        "askExchangeCode": "",
+        "askPrice": 94.8,
+        "askSize": "NaN"
+    }
+}

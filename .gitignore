@@ -8,6 +8,7 @@ data/trader_portfolio.csv
 data/live_quotes/
 data/hist_quotes/
 tokens.json
+*token.json
 *.DS_Store
 * - Copy.csv
 .vscode/

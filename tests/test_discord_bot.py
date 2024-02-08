@@ -4,21 +4,21 @@ import pandas as pd
 import os
 from datetime import datetime, timedelta
 from DiscordAlertsTrader.discord_bot import DiscordBot
-from mock_discord_message import make_message
+from tests.mock_discord_message import make_message
 from DiscordAlertsTrader.configurator import cfg
 
 root_dir  =  os.path.abspath(os.path.dirname(__file__))
 
 class TestDiscordBot(unittest.TestCase):
     def test_new_msg_acts_from_discord_msg(self):
-        
+
         self.tracker_portfolio_fname=root_dir+"/data/test_tracker_portfolio.csv"
 
         queue_prints = MagicMock()
         bot = DiscordBot(queue_prints=queue_prints, live_quotes=False, brokerage=None,
                          tracker_portfolio_fname=self.tracker_portfolio_fname,
                          cfg=cfg)
-        
+
         message = make_message()
         bot.new_msg_acts(message, from_disc=True)
         # print("portfolio after:", bot.tracker.portfolio)
@@ -37,7 +37,7 @@ class TestDiscordBot(unittest.TestCase):
         self.assertEqual(port['STC-Price'], 2.0)
         self.assertEqual(port['STC-Price'], 2.0)
         self.assertEqual(port['PnL'], 100.0)
-        
+
         # Delete the generated file
         os.remove(self.tracker_portfolio_fname)
 
@@ -49,7 +49,7 @@ class TestDiscordBot(unittest.TestCase):
         expdate = datetime.now().strftime("%m/%d")
         message = pd.Series({'AuthorID': None,
                             'Author': "JonP",
-                            'Date': "2022-01-01 10:00:00.000000", 
+                            'Date': "2022-01-01 10:00:00.000000",
                             'Content': f'BTO 5 AI 25c {expdate} @ 1 <@&940418825235619910> swinging',
                             'Channel': "channel 1"
                             })
@@ -73,10 +73,10 @@ class TestDiscordBot(unittest.TestCase):
                          tracker_portfolio_fname=self.tracker_portfolio_fname)
         expdate = datetime.now() - timedelta(days=1)
         expdate = expdate.strftime("%m/%d")
-        
+
         message = pd.Series({'AuthorID': None,
                             'Author': "JonP",
-                            'Date': "2022-01-01 10:00:00.000000", 
+                            'Date': "2022-01-01 10:00:00.000000",
                             'Content': f'BTO 5 AI 25c {expdate} @ 1 <@&940418825235619910> swinging',
                             'Channel': "channel 1"
                             })
