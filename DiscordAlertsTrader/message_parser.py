@@ -10,7 +10,7 @@ import pandas as pd
 from datetime import datetime
 import numpy as np
 
-def parse_trade_alert(msg, asset=None):
+def parse_trade_alert(msg: str, asset=None):
     pattern = r'\b(BTO|STC|STO|BTC)\b\s*(\d+)?\s*([A-Z]+)\s*(\d+[.\d+]*[cp]?)?\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)?\s*@\s*[$]*[ ]*(\d+(?:[,.]\d+)?|\.\d+)'
     match = re.search(pattern, msg, re.IGNORECASE)
     strike_date = True

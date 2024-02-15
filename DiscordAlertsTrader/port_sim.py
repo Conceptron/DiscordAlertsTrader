@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from DiscordAlertsTrader.message_parser import parse_symbol
 
-try: 
+try:
     from thetadata import OptionReqType, OptionRight, DateRange, DataType
 except ImportError:
     print("thetadata not installed, will not be able to get historical quotes")
@@ -27,12 +27,12 @@ def get_hist_quotes(symbol:str, date_range:List[date], client, interval_size:int
         drange = DateRange(date_range[0], date_range[0])
     else:
         drange = DateRange(date_range[0], date_range[1])
-    
+
 
     with client.connect():
             # Make the request
             out = client.get_hist_option(
-                req=OptionReqType.QUOTE,  
+                req=OptionReqType.QUOTE,
                 root=option['symbol'],
                 exp=exp,
                 strike=option['strike'],
@@ -86,8 +86,8 @@ def period_to_date(period):
         return current_date.replace(day=1)
     elif period == 'ytd':
         return current_date.replace(month=1, day=1)
-    
-def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qty:int=None, 
+
+def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qty:int=None,
                     max_underlying:int=None, max_dte:int=None, min_dte:int=None):
     """Cap portfolio trades
 
@@ -125,7 +125,7 @@ def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qt
         de = pd.to_datetime(de, format='%m%d%y').dt.date
         dte = pd.to_timedelta(de - pd.to_datetime(data['Date']).dt.date).dt.days
         # msk out, neg so NaNs are not removed
-        msk_out = (dte > max_dte) | (dte < min_dte) 
+        msk_out = (dte > max_dte) | (dte < min_dte)
         data = data[~msk_out]
 
     if max_u_qty is not None:
@@ -137,7 +137,7 @@ def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qt
         option_mult[option_mult==1] = 100
         con_value = (data['Price'] * option_mult) < min_con_val
         data = data[~con_value | ~(data['Asset'] == 'option')]
-    
+
     if max_trade_val is not None:
         option_mult = (data['Asset'] == 'option').astype(int)
         option_mult[option_mult==1] = 100
@@ -148,7 +148,7 @@ def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qt
 
     # recalculates pnls
     if any([max_u_qty, max_trade_val]):
-        mult =(data['Asset'] == 'option').astype(int) 
+        mult =(data['Asset'] == 'option').astype(int)
         mult[mult==0] = .01  # pnl already in %
         data.loc[:,'PnL$'] = data['Qty'] * data['PnL'] * data['Price'] * mult
         data.loc[:,'PnL$-actual'] = data['Qty'] * data['PnL-actual'] * data['Price-actual'] * mult
@@ -156,7 +156,7 @@ def port_cap_trades(data, max_trade_val:int=None, min_con_val:int=None, max_u_qt
         data.loc[:,'PnL$-actual'] = data['PnL$-actual'].round()
     return data
 
-def filter_data(data,exclude={}, filt_author='', filt_date_frm='', filt_date_to='',
+def filter_data(data, exclude={}, filt_author='', filt_date_frm='', filt_date_to='',
                 filt_sym='', exc_author='', exc_chn='', exc_sym='', msg_cont='',
                 max_trade_val="", min_con_val="", max_u_qty="", max_underlying="", max_dte="", min_dte="",
                 filt_chn="", filt_hour_frm="", filt_hour_to=""
@@ -172,11 +172,11 @@ def filter_data(data,exclude={}, filt_author='', filt_date_frm='', filt_date_to=
             elif k == "Open" and v:
                 data = data[data["isOpen"] !=1]
             elif k == "NegPnL" and v:
-                col = "PnL" if "PnL" in data else 'PnL'                
-                pnl = data[col].apply(lambda x: np.nan if x =="" else eval(x) if isinstance(x, str) else x)     
+                col = "PnL" if "PnL" in data else 'PnL'
+                pnl = data[col].apply(lambda x: np.nan if x =="" else eval(x) if isinstance(x, str) else x)
                 data = data[pnl > 0 ]
             elif k == "PosPnL" and v:
-                col = "PnL" if "PnL" in data else 'PnL' 
+                col = "PnL" if "PnL" in data else 'PnL'
                 pnl = data[col].apply(lambda x: np.nan if x =="" else eval(x) if isinstance(x, str) else x)
                 data = data[pnl < 0 ]
             elif k == "stocks" and v:
@@ -231,7 +231,7 @@ def filter_data(data,exclude={}, filt_author='', filt_date_frm='', filt_date_to=
     for i in range(len(arguments)):
         if isinstance(arguments[i], (int,float)):
             arguments[i] = arguments[i]
-        elif isinstance(arguments[i], str) and arguments[i].isdigit():            
+        elif isinstance(arguments[i], str) and arguments[i].isdigit():
             arguments[i] = eval(arguments[i])
         else:
             arguments[i] = None
@@ -309,12 +309,12 @@ def calc_buy_trailingstop(data:pd.Series, ts:float, buy_price:float=None):
     trigger_index : int
         The index of the quote at which the trailing stop was triggered
     """
-    
+
     # If pt is None, use the first value of the series
-    min_value = buy_price or data.iloc[0]  
+    min_value = buy_price or data.iloc[0]
     trailing_stop = min_value + ts
     trigger_index = None
-    
+
     for i in range(1, len(data)):
         actual_value = data.iloc[i]
         # New low
@@ -386,20 +386,20 @@ def calc_SL(data:pd.Series, sl:float, update:list=None):
 
 def calc_PT(data:pd.Series, pt:float):
     """Calculate the Profit Target for a given series of quotes
-    
+
     Parameters
     ----------
     Data : pd.Series
         Series of quotes
     pt : float
         Profit target
-    
+
     Returns
     -------
     list
-        pt_value, pt_index, pt_index    
+        pt_value, pt_index, pt_index
     """
-    
+
     start = data >= pt
     # normal SL
     if start.sum():
@@ -446,15 +446,15 @@ def calc_roi(quotes:pd.Series, PT:float, TS:float, SL:float, do_plot:bool=False,
     else:
         initial_price = initial_prices
     sl = initial_price * SL
-    # average down 
+    # average down
     ds_inf = []
     tot_qty_ratio = 1
     if avgdown is not None:
         # check if ds before PT
         pt = initial_price * PT
         trigger_price, trigger_index, pt_index = calc_PT(quotes, pt)
-        for dws in avgdown:            
-            sl_index, sl_val = calc_SL(quotes, initial_price *(1-dws[0]/100), [])            
+        for dws in avgdown:
+            sl_index, sl_val = calc_SL(quotes, initial_price *(1-dws[0]/100), [])
             if (trigger_index is None and sl_index is not None) or \
                 (trigger_index and sl_index and trigger_index > sl_index):
                 ds_inf.append([sl_index, sl_val, dws[1]/100])
@@ -464,12 +464,12 @@ def calc_roi(quotes:pd.Series, PT:float, TS:float, SL:float, do_plot:bool=False,
             initial_price = sum([initial_price] + [i[1]*i[2] for i in ds_inf])/tot_qty_ratio
             quotes = quotes[quotes.index >= ds_inf[-1][0]]
             sl = initial_price * SL
-    
+
     # Calculate the PT, SL and trailing stop levels
     pt = initial_price * PT
-    
+
     ts = initial_price * TS
-    
+
     if TS == 0:
         trigger_price, trigger_index, pt_index = calc_PT(quotes, pt)
     else:
@@ -578,7 +578,7 @@ class Customembed:
         self.embed.description = embed['description']
         self.embed.author = emebed_author(embed['author'])
         self.embed.fields = [embed_field(f) for f in embed['fields']]
-        
+
 class emebed_author:
     def __init__(self, embed):
         self.embed.author.name = embed['name']
@@ -590,4 +590,3 @@ class embed_field:
         self.name = field['name']
         self.value = field['value']
         self.inline = field['inline']
-        

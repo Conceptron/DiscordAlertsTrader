@@ -67,17 +67,17 @@ def tradeproelite_formatting(message_):
     Reformat Discord message from TPE to change generate alerts bot to author
     TPE guild id: 836435995854897193
     """
-    # Don't do anything if not Xtrade message
+    # Don't do anything if not tradeproelite message
     if message_.guild.id != 836435995854897193:
         return message_
-    
+
     # Change bot to author
     if message_.author.name == 'EnhancedMarket':
         message = MessageCopy(message_)
         message.author.name = 'enhancedmarket'
         message.author.discriminator = '0'
         return message
-    
+
     return message_
 
 
@@ -124,7 +124,7 @@ def jpm_formatting(message_):
             ticker, expdate, strike, price = match.groups()
             # BTO always have SL
             action = "BTO" if mb.title == 'Open' else "STC"
-            ext = "" if action =='BTO' or " out" in alert else f" trim " 
+            ext = "" if action =='BTO' or " out" in alert else f" trim "
             if 'lotto' in alert.lower():
                 ext += " lotto"
             if "trim" in ext:
@@ -182,7 +182,7 @@ def nitro_formatting(message_):
             description = mb.description
             contract_match = re.search(r'\*\*Contract:\*\*[ ]+([A-Z]+)[ ]+?(\d{1,2}\/\d{1,2})?[ ]*?\$?([0-9]+)([cCpP])', description)
             fill_match = re.search(r'\*\*Price:\*\* ?\$?([\d.]+)', description)
-            
+
             if contract_match is None:
                 alert = f"{mb.title}: {mb.description}"
                 continue
@@ -191,7 +191,7 @@ def nitro_formatting(message_):
                 price= float(fill_match.groups()[0])
             else:
                 price = None
-            if exp_date is None: 
+            if exp_date is None:
                 if strike in ["QQQ", "SPY", "IWM"]:
                     exp_date = "0DTE"
                 else:
@@ -200,7 +200,7 @@ def nitro_formatting(message_):
             alert += format_0dte_weeklies(bto, message, False)
         else:
             alert = f"{mb.title}: {mb.description}"
-            
+
     if len(alert):
         message.content = alert
     return message
@@ -213,17 +213,17 @@ def diesel_formatting(message_):
 
     if message.content  is None:
         return message
-    
-    alert = message.content    
+
+    alert = message.content
     pattern = r'BTO\s+([A-Z]+)\s+([\d.]+)([c|p])\s*(\d{1,2}\/\d{1,2})?\s+@\s*([\d.]+)'
     match = re.search(pattern, alert, re.IGNORECASE)
     if match:
         ticker, strike, otype, expDate, price = match.groups()
         if expDate is None:
-            bto = f"BTO {ticker} {strike.upper()}{otype[0]} 0DTE @{price}" 
+            bto = f"BTO {ticker} {strike.upper()}{otype[0]} 0DTE @{price}"
             alert = format_0dte_weeklies(bto, message, False)
         else:
-            alert += f"BTO {ticker} {strike.upper()}{otype[0]} {expDate} @{price}"        
+            alert += f"BTO {ticker} {strike.upper()}{otype[0]} {expDate} @{price}"
 
     if len(alert):
         message.content = alert
@@ -256,7 +256,7 @@ def owl_formatting(message_):
                 extra = message.embeds[0].description.split(exp_date)[-1].replace("\n", " ")
                 message.content = f"BTO {ticker} {strike} {exp_date} @{price} {extra}"
                 message.author.name = message.embeds[0].author.name
-                
+
     elif message.content.startswith(".bto"):
         pattern = r"TICKER: ([A-Z]+)\nSTRIKE: (\d+[C|P])\nPRICE: ([\d.]+)\nEXP: (\d{2}/\d{2})"
         match = re.search(pattern, message.content)
@@ -277,15 +277,15 @@ def xtrades_formatting(message_):
     # Don't do anything if not Xtrade message
     if message_.guild.id != 542224582317441034 or message_.channel.id == 993892865824542820:
         return message_
-    
+
     # return None if not Xtrade bot
     if message_.author.name != 'Xcapture':
         message_.content = message_.content.replace('BTO', 'BTO_msg').replace('STC', 'STC_msg')\
             .replace('STO', 'STO_msg').replace('BTC', 'BTC_msg')
         return message_
-    
+
     message = MessageCopy(message_)
-    
+
     # get action and author
     actions = {
         'entered long': 'BTO',
@@ -296,7 +296,7 @@ def xtrades_formatting(message_):
         'STOPPED IN PROFIT:': 'STC',
         'closed long from the web platform.': "STC",
         'closed long': "STC",
-        'entered short': 'STO',        
+        'entered short': 'STO',
         "entered short from the web platform.": "STO",
         'covered short from the web platform.': 'BTC',
         "covered short": "BTC",
@@ -321,26 +321,26 @@ def xtrades_formatting(message_):
         return message
 
     # format alert
-    if action in ["BTO", "STC", "STO", "BTC"]:        
+    if action in ["BTO", "STC", "STO", "BTC"]:
         pattern = re.compile(r'(?:\:\S+ )?(\w+) (\w+)(?: (\w+ \d+ \d+) \$?(\d+\.\d+) (\w+))? @ \$?(\d+(?:\.\d+)?)', re.IGNORECASE)
         msg = message.embeds[0].title.replace("**","").replace("_","").replace("¤", "$")
         match = pattern.match(msg)
         if match:
-            direction, stock, expiration_date, strike, option_type, price = match.groups()          
-            
+            direction, stock, expiration_date, strike, option_type, price = match.groups()
+
             market_pattern = re.compile(r'(?:market|current) : \$(\d+(?:\.\d+)?)')
             match = market_pattern.search(msg)
             if match:
                 price = match.group(1)
             else:
                 price = f"{price} (alert price)"
-            
+
             if strike is not None:
                 expiration_date = datetime.strptime(expiration_date, '%b %d %Y').strftime('%m/%d/%y')
                 alert = f"{action} {stock} {strike.replace('.00', '')}{option_type[0]} {expiration_date} @{price}"
             else:
                 alert = f"{action} {stock} @{price}"
-            
+
             # add SL and TP and other fields
             for mb in message.embeds:
                 for fld in mb.fields:
@@ -348,20 +348,20 @@ def xtrades_formatting(message_):
                         alert += f" | {fld.name}: {fld.value}"
             descp = message.embeds[0].description.split("[VIEW DETAILS]")[0].replace('\r\n', ' ')
             alert += f" | {descp}"
-            
+
             message.content = alert
             return message
         print("no match", msg)
         return message
     else:
-        alert = ""        
+        alert = ""
         # add Sl and TP and other fields
         for mb in message.embeds:
             for fld in mb.fields:
                 if hasattr(fld, 'value'):
                     alert += f" | {fld.name}: {fld.value}"
         descp = message.embeds[0].description.split("[VIEW DETAILS]")[0].replace('\r\n', ' ')
-        alert += f" | {descp}" 
+        alert += f" | {descp}"
         message.content = alert
         return message
 
@@ -539,10 +539,10 @@ def format_0dte_weeklies(contract, message, remove_price=True):
 def aurora_trading_formatting(message_):
     """
     Reformat Discord message from aurora_trading to content message
-    """        
+    """
     message = MessageCopy(message_)
     # format Bryce trades
-    if message_.channel.id in [846415903671320598, 1093340247057772654, 953812898059276369]:   
+    if message_.channel.id in [846415903671320598, 1093340247057772654, 953812898059276369]:
         message.content = format_alert_date_price(message.content)
     # format ace trades
     elif message_.channel.id == 885627509121618010:
@@ -555,12 +555,12 @@ def aurora_trading_formatting(message_):
                 fill_match = re.search(r'\*\*\[🍉\] My Fill:\*\* ([\d.]+)', description)
                 risk_match = re.search(r'\*\*\[🚨\]  Risk:\*\* ([\d/]+)', description)
                 extra_info_match = re.search(r'\*\*\[🗨️\] Comment:\*\* ([^\n]+)', description)
-                
+
                 if contract_match:
                     contract = contract_match.group(1).strip().replace(" - ", " ")
                     # Check for 0DTE and replace with today's date
                     contract = format_0dte_weeklies(contract, message)
-                    contract = format_alert_date_price(contract)                    
+                    contract = format_alert_date_price(contract)
                     alert += f"{contract}"
                 if fill_match :
                     fill = fill_match.group(1).strip()
@@ -577,12 +577,12 @@ def aurora_trading_formatting(message_):
                 contract_match = re.search(r'\*\*\[🎟️\] Contract:\*\* __([^_]+)__', description)
                 fill_match = re.search(r'\*\*\[✂️] Scaling Price:\*\* ([\d.]+)', description)
                 extra_info_match = re.search(r'\*\*\[🗨️\] Comment:\*\* ([^\n]+)', description)
-                
+
                 if contract_match:
                     contract = contract_match.group(1).strip().replace(" - ", " ")
                     # Check for 0DTE and weeklies
                     contract = format_0dte_weeklies(contract, message)
-                    contract = format_alert_date_price(contract) 
+                    contract = format_alert_date_price(contract)
                     alert += f"{contract}"
                 if fill_match :
                     fill = fill_match.group(1).strip()
@@ -592,15 +592,15 @@ def aurora_trading_formatting(message_):
                     alert += f" | comment: {extra_info}"
                 if mb.title == 'Options Scale':
                     alert += " | partial scale"
-                
+
             elif mb.description:
                 alert += f"(not parsed) {mb.description}"
-        if len(alert):  
+        if len(alert):
             message.content = alert
     # format demon trades
     elif message_.channel.id in [886669912389607504, 1072553859454599197, 904396043498709072]:
         contract = format_0dte_weeklies(message.content, message, False)
-        message.content = format_alert_date_price(contract) 
+        message.content = format_alert_date_price(contract)
 
     return message
 
@@ -608,20 +608,20 @@ def oculus_alerts(message_):
     """
     Reformat Discord message from oculus to content message
     """
-    
+
     if not message_.content:
         return message_
-    
+
     message = MessageCopy(message_)
     alert = message.content
-    
+
     if "%" in alert: # just status update
         return message
-    
+
     if "(0dte)" in alert.lower():
         alert = alert.replace("(0dte)", "0DTE")
         alert = format_0dte_weeklies(alert, message, remove_price=False)
-    
+
     pattern = r'\$(\w+)\s+\$?(\d[\d,]+)\s+(\w+)\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+@([\d.]+)'
     match = re.search(pattern, alert, re.IGNORECASE)
     if match:
@@ -633,10 +633,10 @@ def oculus_alerts(message_):
 def eclipse_alerts(message_):
     """
     Reformat Discord message from eclipse to content message
-    """   
+    """
     if not message_.content:
         return message_
-    
+
     message = MessageCopy(message_)
     alert = message.content
     pattern = r'([A-Z]+)\s*(\d+[.\d+]*[c|p|C|P])\s*(\d{1,2}\/\d{1,2})?\s*@\s*(\d+(?:[.]\d+)?|\.\d+)'
@@ -661,7 +661,7 @@ def eclipse_alerts(message_):
                 chall += " | Challenge Account"
             alert = f"BTO {qty} {ticker} {strike.upper()} {expDate} @{price}{chall}"
         else: # diff format
-            
+
             pattern = r'\$?(\w+)\s+\$?([\d.]+)\s+(\w+)\s+(\d{1,2}\/\d{1,2})\s+@([\d.]+)'
             match = re.search(pattern, alert, re.IGNORECASE)
             if match:
@@ -769,25 +769,25 @@ def prophet_formatting(message_):
 def moneymotive(message_):
     """
     Reformat Discord message from moneymotive to content message
-    """   
+    """
     if not message_.content:
         return message_
-    
+
     message = MessageCopy(message_)
     alert = message.content
-    
+
     if "%" in alert and ":rotating_light:" not in alert: # just status update
         print("Moneymotive no '%' or no rotatig light")
         return message
-    
+
     if ":rotating_light:" in alert and "/" not in alert and "0DTE" not in alert:
         alert = alert.replace(":rotating_light:", "0DTE :rotating_light:")
         message.content = alert
-    
+
     if "0DTE" in alert:
         alert = format_0dte_weeklies(alert, message, remove_price=False)
         message.content = alert
-    
+
     pattern = r'\$?(\w+)\s+([\d.]+)\s+(\w+)\s+(\d{1,2}\/\d{1,2})\s+@\s*([\d.]+)'
     match = re.search(pattern, alert, re.IGNORECASE)
     if match:
@@ -814,7 +814,7 @@ def bear_alerts(message_):
             description = mb.description
             contract_match = re.search(r'\*\*Contract:\*\* \$([A-Z]+) (\d{1,2}\/\d{1,2}) ([\d.]+)([cCpP])', description)
             fill_match = re.search(r'\*\*Entry:\*\* ([\d.]+)', description)
-            
+
             if contract_match is None:
                 alert = f"{mb.title}: {mb.description}"
                 continue
@@ -823,7 +823,7 @@ def bear_alerts(message_):
                 price= float(fill_match.groups()[0])
             else:
                 price = None
-            if exp_date is None: 
+            if exp_date is None:
                 if strike in ["QQQ", "SPY", "IWM"]:
                     exp_date = "0DTE"
                 else:
@@ -832,19 +832,19 @@ def bear_alerts(message_):
             alert += format_0dte_weeklies(bto, message, False)
         else:
             alert = f"{mb.title}: {mb.description}"
-            
+
     if len(alert):
         message.content = alert
     return message
 
-    
+
 def rough_alerts(message_):
     """
     Reformat Discord message from rough to content message
-    """   
+    """
     if not message_.content:
         return message_
-    
+
     message = MessageCopy(message_)
     pattern = r'\b(BTO)?\b(\d{1,2}\/\d{1,2})?\s*([A-Z]+)\s*(\d+[.\d+]*[c|p|C|P])\s*@\s*(\d+(?:[.]\d+)?|\.\d+)'
     match = re.search(pattern, message.content, re.IGNORECASE)
@@ -864,9 +864,9 @@ def format_alert_date_price(alert, possible_stock=False):
         asset_type = 'option' if strike and expDate else 'stock'
         symbol =  ticker.upper()
         price =  f" @ {float(price.replace(',', '.'))}" if price else ""
-    
+
         if asset_type == 'option':
-            # fix missing strike, assume Call            
+            # fix missing strike, assume Call
             if "c" not in strike.lower() and "p" not in strike.lower():
                 strike = strike + "c"
             if action is None:  # assume BTO
