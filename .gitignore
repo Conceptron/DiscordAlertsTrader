@@ -2,9 +2,11 @@
 custom_msg_format.py
 secrets_td.json
 data/*_message_history.csv
+data/*_message_history_backtest.csv
 data/trader_logger.csv
 data/trader_portfolio.csv
 data/live_quotes/
+data/hist_quotes/
 tokens.json
 *.DS_Store
 * - Copy.csv
@@ -61,6 +63,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+test.ipynb
 
 # Translations
 *.mo
