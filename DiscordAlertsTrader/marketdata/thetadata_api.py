@@ -54,24 +54,38 @@ class ThetaClientAPI:
         else:
             drange = DateRange(date_range[0], date_range[1])
 
+        fquote = f"{self.dir_quotes}/{symbol}.csv"
+        fetch_data = True
+        if op.exists(fquote):
+            df = pd.read_csv(fquote)
+            df['date'] = pd.to_datetime(df['timestamp'], unit='s').dt.date
+            if drange.start in df['date'].values and drange.end in df['date'].values:
+                print(f"{Fore.YELLOW} Found data for {symbol}: {drange.start} to {drange.end}")
+                fetch_data = False
+                data = df[(df['date']>=drange.start) & (df['date']<=drange.end)]
 
-        data = self.client.get_hist_option_REST(
-            req=OptionReqType.QUOTE,
-            root=option['symbol'],
-            exp=exp,
-            strike=option['strike'],
-            right=right,
-            date_range=drange,
-            interval_size=interval_size
-        )
+        if fetch_data:
+            print(f"{Fore.YELLOW} Fetching data from thetadata for {symbol}: {drange.start} to {drange.end}")
+            data = self.client.get_hist_option_REST(
+                req=OptionReqType.QUOTE,
+                root=option['symbol'],
+                exp=exp,
+                strike=option['strike'],
+                right=right,
+                date_range=drange,
+                interval_size=interval_size
+            )
 
-        # Apply the function row-wise to compute the timestamp and store it in a new column
-        data['timestamp'] = data.apply(get_timestamp, axis=1)
-        data['timestamp'] = data['timestamp'].astype(int)
-        data['bid'] = data[DataType.BID]
-        data['ask'] = data[DataType.ASK]
-        data = data[['timestamp', 'bid', 'ask']]
-        data = data[(data['ask']!=0) & (data['bid']!=0)] # remove zero ask
+            # Apply the function row-wise to compute the timestamp and store it in a new column
+            data['timestamp'] = data.apply(get_timestamp, axis=1)
+            data['timestamp'] = data['timestamp'].astype(int)
+            data['bid'] = data[DataType.BID]
+            data['ask'] = data[DataType.ASK]
+            data = data[['timestamp', 'bid', 'ask']]
+            data = data[(data['ask']!=0) & (data['bid']!=0)] # remove zero ask
+            
+            save_or_append_quote(data, symbol, self.dir_quotes)
+        
         return data
 
     def get_price_at_time(self, symbol: str, unixtime: int, price_type: str="BTO"):
@@ -89,6 +103,7 @@ class ThetaClientAPI:
             if unixtime_date in df['date'].values:
                 df_date = df[df['date']==unixtime_date]
                 if df_date['timestamp'].min() <= unixtime <= df_date['timestamp'].max():
+                    print(f"{Fore.YELLOW} Found data for {symbol} at {datetime.fromtimestamp(unixtime)}")
                     fetch_quote = False
                     quotes = df_date
 
@@ -108,3 +123,11 @@ class ThetaClientAPI:
         
         print(f"{Fore.RED} Error: price for {symbol} not found at {datetime.fromtimestamp(unixtime)}")
         return -1, 0
+
+
+if __name__ == "__main__":
+    client = ThetaClientAPI()
+    symbol = "ORCL_020224C116"
+    date_range = [date(2024, 2, 1)]
+    quotes = client.get_hist_quotes(symbol, date_range)
+    print(quotes)
