@@ -7,6 +7,9 @@ data/trader_logger.csv
 data/trader_portfolio.csv
 data/live_quotes/
 data/hist_quotes/
+data/exported/
+data/parsed/
+data/backtests/
 *.numbers
 tokens.json
 *token.json
