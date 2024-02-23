@@ -62,6 +62,7 @@ class DiscordBot(discord.Client):
         self.live_quotes = live_quotes
         self.cfg = cfg
         self.track_old_alerts = track_old_alerts
+        self.lc = {}
 
         if self.track_old_alerts:
             from DiscordAlertsTrader.marketdata.thetadata_api import ThetaClientAPI
@@ -279,8 +280,9 @@ class DiscordBot(discord.Client):
                 if self.old_trades_config_by_channel[ch]["mode"] == "use_message_history_csv":
                     self.load_previous_msgs_from_csv(ch)
 
-        print("Done")        
-        self.tracker.close_expired()
+        print("Done")    
+        if not self.track_old_alerts:
+            self.tracker.close_expired()
 
     def load_previous_msgs_from_csv(self, ch):
         print(f"Loading previous messages for {ch}")
@@ -478,10 +480,19 @@ class DiscordBot(discord.Client):
 
         return False, order
 
+def run_in_backtest_mode():
+    from DiscordAlertsTrader.configurator import cfg
+
+    client = DiscordBot(brokerage=None, cfg=cfg, track_old_alerts=True)
+    client.login(cfg['discord']['discord_token']) # use this if you need to fetch old messages
+    client.load_previous_msgs()
+
 if __name__ == '__main__':
-    from DiscordAlertsTrader.configurator import cfg, channel_ids
-    from DiscordAlertsTrader.brokerages import get_brokerage
+    # from DiscordAlertsTrader.configurator import cfg, channel_ids
+    # from DiscordAlertsTrader.brokerages import get_brokerage
 
     # bksession = get_brokerage()
-    client = DiscordBot(brokerage=None, cfg=cfg, track_old_alerts=True)
-    client.run(cfg['discord']['discord_token'])
+    # client = DiscordBot(brokerage=None, cfg=cfg, track_old_alerts=True)
+    # client.run(cfg['discord']['discord_token'])
+
+    run_in_backtest_mode()
