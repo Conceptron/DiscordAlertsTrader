@@ -19,19 +19,18 @@ class AlertsTracker():
                  portfolio_fname=cfg['portfolio_names']["tracker_portfolio_name"],
                  dir_quotes = cfg['general']['data_dir'] + '/live_quotes',
                  cfg=cfg,
-                 track_old_alerts=False,
                  logging_config=None):
 
         self.portfolio_fname = portfolio_fname
         self.dir_quotes = dir_quotes
         self.bksession = brokerage
         self.cfg = cfg
-        self.track_old_alerts = track_old_alerts
         # logging config
-        self.lc = {
-            "portfolio": False
-        }
-        if self.track_old_alerts:
+        if logging_config is None:
+            self.lc = {
+                "portfolio": False
+            }
+        else:
             self.lc = logging_config
 
         if op.exists(self.portfolio_fname):
@@ -204,9 +203,6 @@ class AlertsTracker():
         return str_STC
 
     def compute_trail(self, open_trade):
-        if self.track_old_alerts:
-            # todo: support compute trail for past trades
-            return ""
         trade = self.portfolio.loc[open_trade]
         fname = self.dir_quotes + f"/{trade['Symbol']}.csv"
         if not op.exists(fname):
