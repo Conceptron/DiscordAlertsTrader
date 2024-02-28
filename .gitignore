@@ -10,6 +10,9 @@ data/hist_quotes/
 data/exported/
 data/parsed/
 data/backtests/
+data/analysis
+data/backtest_ports
+backtesting/
 *.numbers
 tokens.json
 *token.json
