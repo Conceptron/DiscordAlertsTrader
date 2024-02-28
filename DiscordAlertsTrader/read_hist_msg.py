@@ -3,7 +3,9 @@ import re
 import json
 from datetime import datetime, timezone, timedelta
 from DiscordAlertsTrader.message_parser import parse_trade_alert
-from DiscordAlertsTrader.server_alert_formatting import format_alert_date_price
+from DiscordAlertsTrader.server_alert_formatting import (
+    format_alert_date_price,
+)
 
 def format_0dte_weeklies(contract, message_date, remove_price=True):
     "remove price when stc title is bto"
@@ -334,18 +336,18 @@ def oculus_formatting(message, msg_date_ob):
     alert = message['content']
     if "%" in alert: # just status update
         return alert
-    
+
     if "(0dte)" in alert.lower():
         alert = alert.replace("(0dte)", "0DTE")
         alert = alert = format_0dte_weeklies(alert, msg_date_ob, False)
-    
+
     pattern = r'\$(\w+)\s+\$?(\d[\d,]+)\s+(\w+)\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+@([\d.]+)'
     match = re.search(pattern, alert, re.IGNORECASE)
     if match:
         ticker, strike, otype, expDate, price = match.groups()
         alert = f"BTO {ticker} {strike.upper()}{otype[0]} {expDate} @{price}"
     return alert
-    
+
 
 def convert_date(input_date):
     # Map month abbreviations to their numeric representation
@@ -382,12 +384,12 @@ def theta_warrior_elite(message):
     return alert
 
 def parse_hist_msg(fname, author):
-    
+
     with open(fname, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     msgs = []
-    for msg  in data['messages']:
+    for msg in data["messages"]:
         try:
             msg_date = datetime.strptime(msg['timestamp'], '%Y-%m-%dT%H:%M:%S.%f%z')
         except ValueError:
@@ -420,7 +422,6 @@ def parse_hist_msg(fname, author):
         elif author == "oculus":
             content = oculus_formatting(msg, msg_date_ob)
         elif author == "bear":
-            
             content = bear_formatting(msg)
         elif author == "theta_warrior_elite":
             content = theta_warrior_elite(msg)
@@ -428,14 +429,17 @@ def parse_hist_msg(fname, author):
             content = makeplays_main_formatting(msg, msg_date_ob)
         elif author == "kingmaker":
             content = kingmaker_main_formatting(msg, msg_date_ob)
+        elif author in ["em_alerts", "tpe_team", "em_challenge"]:
+            content = msg["content"]
+            msg["author"]["name"] = msg["author"]["name"].lower()
 
         pars, order = parse_trade_alert(content)
         msgs.append([msg_date.strftime('%m/%d/%Y %H:%M:%S.%f'), msg["author"]["name"], content, pars, msg['content']])
 
     df = pd.DataFrame(msgs, columns=['Date', 'Author', 'Content', 'parsed', 'original'])
     return df
-    
-    
+
+
 if __name__ == "__main__":
     author = "bear"
 
