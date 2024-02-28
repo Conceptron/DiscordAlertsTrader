@@ -16,11 +16,15 @@ from DiscordAlertsTrader.port_sim import (
     save_or_append_quote,
 )
 import matplotlib.pyplot as plt
-from DiscordAlertsTrader.marketdata.thetadata_api import ThetaClientAPI
+print(f"plot backend {plt.get_backend()}")
+
+# get rid of SettingWithCopyWarning. df['column'] returns a copy of the column, so use df.loc[row_index, 'column'] instead
+pd.options.mode.chained_assignment = None
+data_dir = cfg["general"]["data_dir"]
 
 def calc_returns(
     fname_port=cfg["portfolio_names"]["tracker_portfolio_name"],
-    dir_quotes=cfg["general"]["data_dir"] + "/live_quotes",
+    dir_quotes=data_dir+"/live_quotes",
     order_type="any",
     last_days=None,
     filt_date_frm="",
@@ -327,8 +331,8 @@ def calc_returns(
                         quotes = get_hist_quotes(
                             row["Symbol"], [dt_b, dt_s], theta_client
                         )
+                        print("saving...", row["Symbol"], row["Date"])
                         save_or_append_quote(quotes, row["Symbol"], dir_quotes)
-                    print("saving...", row["Symbol"], row["Date"])
                 except:
                     if verbose:
                         print("no quotes for", row["Symbol"])
@@ -471,7 +475,7 @@ def calc_returns(
         except TypeError:
             dt_close = dates.loc[roi_actual[-2]]
 
-        port.loc[idx, "strategy-close_date"] = pd.to_datetime(dt_close)
+        port.loc[idx, "strategy-close_date"] = pd.to_datetime(dt_close).tz_localize(None)
         pnl = roi_actual[2]
         mult = 0.1 if row["Asset"] == "stock" else 1
 
@@ -570,11 +574,12 @@ def grid_search(params_dict, PT=[60], TS=[0], SL=[45], TS_buy=[5, 10, 15, 20, 25
                     pnl_t += f"_tsb{ts_buy}" if ts_buy != 0 else ""
                     pnl_t += f"_ts{ts}" if ts != 0 else ""
 
-                    pnl_t += f"_ts{ts}" if ts != 0 else ""
                     params_dict["PT"] = [pt]
                     params_dict["SL"] = sl
                     params_dict["TS_buy"] = ts_buy
                     params_dict["TS"] = ts
+
+                    params_dict["verbose"] = False
 
                     port, no_quote, param = calc_returns(
                         dir_quotes=dir_quotes, theta_client=client, **params_dict
@@ -591,9 +596,7 @@ def grid_search(params_dict, PT=[60], TS=[0], SL=[45], TS_buy=[5, 10, 15, 20, 25
                     port_out = pd.concat([port_out, port_renamed], axis=1)
 
                     port = port[port["strategy-PnL"].notnull()]
-                    win = (port["strategy-PnL"] > 0).sum() / port[
-                        "strategy-PnL"
-                    ].count()
+                    win = (port["strategy-PnL"] > 0).sum() / port["strategy-PnL"].count()
                     res.append(
                         [
                             pt,
@@ -637,12 +640,19 @@ def grid_search(params_dict, PT=[60], TS=[0], SL=[45], TS_buy=[5, 10, 15, 20, 25
     return res, port_out
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     with_theta = True
+    use_theta_rest_api = True
+    do_grid_search = True
+    
+    analysis_dir = op.join(data_dir, "analysis")
+    plots_dir = op.join(analysis_dir, "backtest_plots")
+
+    
     if with_theta:
         from thetadata import ThetaClient
 
-        dir_quotes = cfg["general"]["data_dir"] + "/hist_quotes"
+        dir_quotes = data_dir + "/hist_quotes"
         if use_theta_rest_api:
             client = ThetaClientAPI()
         else:
@@ -652,13 +662,17 @@ if __name__ == "__main__":
             )
     else:
         client = None
-        dir_quotes = cfg["general"]["data_dir"] + "/live_quotes"
+        dir_quotes = data_dir + "/live_quotes"
+
+    portfolio_fname = "backtest_ports/demon_port"
 
     params = {
-        "fname_port": op.join(cfg["general"]["data_dir"], "demon_port.csv"),
+        "fname_port": op.join(
+            data_dir, f"{portfolio_fname}.csv"
+        ),
         "order_type": "any",
         "last_days": 300,
-        "filt_date_frm": "ytd",
+        "filt_date_frm": "mtd",
         "filt_date_to": "",
         "stc_date": "eod",  # 'stc alert', #,  #'exp',# 'exp', #, # 'eod' or
         "max_underlying_price": 2000,
@@ -667,7 +681,7 @@ if __name__ == "__main__":
         "min_dte": 0,
         "filt_hour_frm": "",
         "filt_hour_to": "",
-        "include_authors": "",
+        "include_authors": "demon2677",
         "exclude_symbols": ["SPY", "QQQ"],
         "PT": [20],  # [20,25,35,45,55,65,75,],# [90],#
         "pts_ratio": [1],  # [0.2,0.2,0.2,0.1,0.1,0.1,0.1,],# [0.4, 0.3, 0.3], #
@@ -684,38 +698,39 @@ if __name__ == "__main__":
         "sell_bto": False,
         "max_short_val": None,
         "invert_contracts": False,
+        "do_plot": False,
     }
-    import time as tt
 
-    t0 = tt.time()
-    port, no_quote, param = calc_returns(
-        dir_quotes=dir_quotes, theta_client=client, **params
-    )
+    if not do_grid_search:
+        import time as tt
+        t0 = tt.time()
+        port, no_quote, param = calc_returns(
+            dir_quotes=dir_quotes, theta_client=client, **params
+        )
 
-    t1 = tt.time()
-    print(f"Time to calc returns: {t1-t0:.2f} sec")
+        t1 = tt.time()
+        print(f"Time to calc returns: {t1-t0:.2f} sec")
 
-    sport = port[
-        [
-            "Date",
-            "Symbol",
-            "Trader",
-            "Price",
-            "strategy-PnL",
-            "strategy-PnL$",
-            "strategy-entry",
-            "strategy-exit",
-            "strategy-close_date",
-            "reason_skip",
+        sport = port[
+            [
+                "Date",
+                "Symbol",
+                "Trader",
+                "Price",
+                "strategy-PnL",
+                "strategy-PnL$",
+                "strategy-entry",
+                "strategy-exit",
+                "strategy-close_date",
+                "reason_skip",
+            ]
         ]
-    ]  #
+        # sport.to_csv(
+        #     op.join(data_dir, f"{portfolio_fname}_analysed.csv"),
+        #     index=False
+        # )
 
-    result_td = generate_report(port, param, no_quote, verbose=True)
-
-    if 1:
-        import matplotlib.pyplot as plt
-
-        print(f"plot backend {plt.get_backend()}")
+        result_td = generate_report(port, param, no_quote, verbose=True)
 
         stat_type = "strategy-PnL"  # 'PnL' #  'PnL-actual'#
         stat_typeu = stat_type.replace("PnL", "PnL$")
@@ -735,11 +750,11 @@ if __name__ == "__main__":
         if param["exclude_symbols"]:
             excl = f"(no {param['exclude_symbols']})"
         title = f"{param['include_authors']} {excl} winrate {winp}% {winr}, trade amount {param['trade_amount']}" \
-            + f" \nat market: avg PnL%={port['strategy-PnL'].mean():.2f}, "\
-                +f"${port['strategy-PnL$'].sum():.0f}" \
-                    + f"\nTS_buy {param['TS_buy']}, PT {param['PT']}, TS {param['TS']},  SL {param['SL']}"
-                # + f" \nat set order: avg PnL%={pnl_emp/ntot:.2f}, "\
-                    # +f" ${param['trade_amount']*(pnl_emp/100):.0f} \n" \
+            + f"\nat market: avg PnL%={port['strategy-PnL'].mean():.2f}, "\
+            + f"${port['strategy-PnL$'].sum():.0f}" \
+            + f"\nTS_buy {param['TS_buy']}, PT {param['PT']}, TS {param['TS']},  SL {param['SL']}" \
+            + f"\nat set order: avg PnL%={pnl_emp/ntot:.2f}, "\
+            + f" ${param['trade_amount']*(pnl_emp/100):.0f} \n"
 
         fig.suptitle(title)
         port[stat_typeu].cumsum().plot(
@@ -773,17 +788,26 @@ if __name__ == "__main__":
         )
         axs[1, 1].set_xlabel("Trade number")
         axs[1, 1].set_ylabel("%")
-        plt.show()
+        plt.show(block=False)
+        plt.savefig(f"{plots_dir}/{params['include_authors']}_{params['filt_date_frm']}_backtest.png")
 
-    if 0:
+    if do_grid_search:
         # res, port_out = grid_search(params, PT= [30, 40], SL=[30], TS_buy=[0], TS= [0])
-        res, port_out = grid_search(params, PT= list(np.arange(20,150, 10)) + [180, 200,250,300], SL=np.arange(20,101,10), TS_buy=[0], TS= [0])
-        res, port_out = grid_search(params, PT= list[30,60,80,120,170,200,250,300] , SL=[50, 80,90], TS_buy=[0], TS= [0])
-    
+        res, port_out = grid_search(
+            params, 
+            PT=[20,40,60,80,100,120,140],
+            # PT=[200,300,400,500],
+            # PT=list(np.arange(20,150,10))+[180,200,250,300], 
+            # PT=[400,500,600,700,800,900,1000],
+            SL=np.arange(20,101,10), 
+            TS_buy=[0], 
+            TS=[0]
+        )
+
         res = np.stack(res)
-        sorted_indices = np.argsort(res[:, 4])
+        sorted_indices = np.argsort(res[:, 4]) # sort by avg pnl %
         sorted_array = res[sorted_indices].astype(int)
-        print(sorted_array[-20:])
+        print(sorted_array[-20:]) 
         hdr = ['PT', 'SL', 'TS_buy', 'TS', 'pnl', 'pnl$', 'trade count', 'win rate']
 
         df = pd.DataFrame(sorted_array, columns=hdr)
@@ -794,11 +818,11 @@ if __name__ == "__main__":
         )
         pname = params["fname_port"].split("/")[-1].split("_port.csv")[0]
         df.to_csv(
-            f"data/analysis/{pname}{param['include_authors']}_grid_search_{f_t_Date}.csv",
+            f"{data_dir}/analysis/{pname}{params['include_authors']}_grid_search_{f_t_Date}.csv",
             index=False,
         )
         port_out.to_csv(
-            f"data/analysis/{pname}{param['include_authors']}_port_strats_{f_t_Date}.csv",
+            f"{data_dir}/analysis/{pname}{params['include_authors']}_port_strats_{f_t_Date}.csv",
             index=False,
         )
         # PT 40,  SL 20,  trailing stop starting at PT: 25,    PNL avg : 5%,  return: $2750,   num trades: 53
