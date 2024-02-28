@@ -52,7 +52,6 @@ class DiscordBot(discord.Client):
             brokerage=None,
             tracker_portfolio_fname=cfg['portfolio_names']["tracker_portfolio_name"],
             cfg = cfg,
-            track_old_alerts=False,
         ):
         super().__init__()
         self.channel_IDS = channel_ids
@@ -61,49 +60,15 @@ class DiscordBot(discord.Client):
         self.bksession = brokerage
         self.live_quotes = live_quotes
         self.cfg = cfg
-        self.track_old_alerts = track_old_alerts
-        self.lc = {}
-
-        if self.track_old_alerts:
-            from DiscordAlertsTrader.marketdata.thetadata_api import ThetaClientAPI
-            self.old_trades_config_by_channel = {
-                "real-time-alerts": {
-                    "mode": "use_message_history_csv",
-                    "from_time": "2024-01-01 0:0:0.0", # timezone is the one used in the message history
-                },
-                "1k-challenge-alerts": {
-                    "mode": "use_message_history_csv",
-                    "from_time": "2024-01-01 0:0:0.0",
-                },
-                "team-alerts": {
-                    "mode": "use_message_history_csv",
-                    "from_time": "2024-01-01 0:0:0.0",
-                },
-            }
-            tracker_portfolio_fname = os.path.join(cfg['general']['data_dir'], "analysts_portfolio_backtesting.csv")
-            self.theta_client = ThetaClientAPI()
-            # logging config for backtesting
-            self.lc = {
-                "portfolio": True
-            }
-            self.live_quotes = False
-            self.bksession = brokerage = None
-
-            delete_existing_backtest_portfolio_message_history = True
-            if delete_existing_backtest_portfolio_message_history:
-                for ch in self.old_trades_config_by_channel.keys():
-                    dt_fname = f"{self.cfg['general']['data_dir']}/{ch}_message_history_backtest.csv"
-                    if os.path.exists(dt_fname):
-                        os.remove(dt_fname)
-                        input(f"Deleted {dt_fname}")
-                if os.path.exists(tracker_portfolio_fname):
-                    os.remove(tracker_portfolio_fname)
-                    input(f"Deleted {tracker_portfolio_fname}")
 
         if brokerage is not None:
             self.trader = AlertsTrader(queue_prints=self.queue_prints, brokerage=brokerage, cfg=self.cfg)
         
-        self.tracker = AlertsTracker(brokerage=brokerage, portfolio_fname=tracker_portfolio_fname, cfg=self.cfg, track_old_alerts=self.track_old_alerts, logging_config=self.lc)
+        self.tracker = AlertsTracker(
+            brokerage=brokerage, 
+            portfolio_fname=tracker_portfolio_fname, 
+            cfg=self.cfg
+        )
         
         self.load_data()
 
@@ -197,11 +162,6 @@ class DiscordBot(discord.Client):
                 ch_dt.to_csv(f"{self.cfg['general']['data_dir']}/{ch}_message_history_temp.csv", index=False)
             else:
                 ch_dt = pd.read_csv(dt_fname)
-
-            if self.track_old_alerts:
-                dt_fname = f"{self.cfg['general']['data_dir']}/{ch}_message_history_backtest.csv"
-                ch_dt = pd.DataFrame(columns=self.cfg['col_names']['chan_hist'].split(","))
-                ch_dt.to_csv(dt_fname, index=False)
             
             self.chn_hist[ch] = ch_dt
             self.chn_hist_fname[ch] = dt_fname
@@ -211,8 +171,6 @@ class DiscordBot(discord.Client):
         await self.load_previous_msgs()
 
     async def on_message(self, message):
-        if self.track_old_alerts:
-            return
         # only respond to channels in config or authorwise subscription
         author = f"{message.author.name}#{message.author.discriminator}"
         if message.channel.id not in self.channel_IDS.values() and \
@@ -252,51 +210,30 @@ class DiscordBot(discord.Client):
                 continue
             print("In", channel)
 
-            if not self.track_old_alerts:
-                if len(self.chn_hist[ch]):
-                    msg_last = self.chn_hist[ch].iloc[-1]
-                    date_After = datetime.strptime(msg_last.Date, self.time_strf)
-                    iterator = channel.history(after=date_After, oldest_first=True)
-                else:
-                    # iterator = channel.history(oldest_first=True)
-                    continue
-
-                async for message in iterator:
-                    message = server_formatting(message)
-                    if message is None:
-                        continue
-                    if custom:
-                        alert = msg_custom_formated(message)
-                        if alert is not None:
-                            for msg in alert:
-                                self.new_msg_acts(msg, False)
-                    else:
-                        self.new_msg_acts(message)
-                if custom:
-                    await msg_custom_formated2(message)
+            if len(self.chn_hist[ch]):
+                msg_last = self.chn_hist[ch].iloc[-1]
+                date_After = datetime.strptime(msg_last.Date, self.time_strf)
+                iterator = channel.history(after=date_After, oldest_first=True)
             else:
-                if not ch in self.old_trades_config_by_channel:
+                # iterator = channel.history(oldest_first=True)
+                continue
+
+            async for message in iterator:
+                message = server_formatting(message)
+                if message is None:
                     continue
-                if self.old_trades_config_by_channel[ch]["mode"] == "use_message_history_csv":
-                    self.load_previous_msgs_from_csv(ch)
+                if custom:
+                    alert = msg_custom_formated(message)
+                    if alert is not None:
+                        for msg in alert:
+                            self.new_msg_acts(msg, False)
+                else:
+                    self.new_msg_acts(message)
+            if custom:
+                await msg_custom_formated2(message)
 
         print("Done")    
-        if not self.track_old_alerts:
-            self.tracker.close_expired()
-
-    def load_previous_msgs_from_csv(self, ch):
-        print(f"Loading previous messages for {ch}")
-        ch_dt = pd.read_csv(f"{self.cfg['general']['data_dir']}/{ch}_message_history.csv")
-        from_time = datetime.strptime(self.old_trades_config_by_channel[ch]["from_time"], self.time_strf)
-        # convert 'Date' column to datetime using same format as time_strf
-        ch_dt['Date_ts'] = pd.to_datetime(ch_dt['Date'], format=self.time_strf)
-        ch_dt = ch_dt[ch_dt['Date_ts'] > from_time]
-        # sort by date in ascending order
-        ch_dt = ch_dt.sort_values(by='Date_ts', ascending=True)
-        for i in range(len(ch_dt)):
-            message = ch_dt.iloc[i]
-            message = pd.Series(message)
-            self.new_msg_acts(message, from_disc=False)
+        self.tracker.close_expired()
 
     def new_msg_acts(self, message, from_disc=True):
         if from_disc:
@@ -351,8 +288,6 @@ class DiscordBot(discord.Client):
 
 
                 dt = datetime.now().date()
-                if self.track_old_alerts:
-                    dt = datetime.strptime(msg["Date"], self.time_strf).date()
                 order['dte'] =  (exp_dt - dt).days
                 if order['dte']<0:
                     str_msg = f"Option date in the past: {order['expDate']}"
@@ -371,31 +306,8 @@ class DiscordBot(discord.Client):
 
             live_alert = True if date_diff.seconds < 90 else False
             str_msg = pars
-            if ((live_alert and self.bksession is not None) or self.track_old_alerts) and (order.get('price') is not None):
-                if self.track_old_alerts:
-                    # get timestamp of message in market time along with added buffer
-                    # todo: this assumes python 3.6 and that the market tz is NY
-                    market_tz = pytz.timezone('US/Eastern')
-                    order_date_market = order_date.astimezone(market_tz)
-                    order_time = order_date_market + pd.Timedelta(seconds=2)
-                    order_time = order_time.timestamp()
-                    quote, time_diff = self.theta_client.get_price_at_time(order['Symbol'], order_time, order["action"])
-                    if quote == -1:
-                        str_msg = f"No price found, skipping alert"
-                        self.queue_prints.put([f"\t {str_msg}", "red"])
-                        print(Fore.RED + f"\t {str_msg}")
-                        msg['Parsed'] = str_msg
-                        append_message(msg, chn, self.chn_hist, self.chn_hist_fname)
-                        return
-                    if time_diff > 60:
-                        str_msg = f"No price found for next 60s, skipping alert"
-                        self.queue_prints.put([f"\t {str_msg}", "red"])
-                        print(Fore.RED + f"\t {str_msg}")
-                        msg['Parsed'] = str_msg
-                        append_message(msg, chn, self.chn_hist, self.chn_hist_fname)
-                        return
-                else:
-                    quote = self.trader.price_now(order['Symbol'], order["action"], pflag=1)
+            if (live_alert and self.bksession is not None) and (order.get('price') is not None):
+                quote = self.trader.price_now(order['Symbol'], order["action"], pflag=1)
                 act_diff = -1
                 if quote:
                     if quote > 0:
@@ -480,19 +392,10 @@ class DiscordBot(discord.Client):
 
         return False, order
 
-def run_in_backtest_mode():
-    from DiscordAlertsTrader.configurator import cfg
-
-    client = DiscordBot(brokerage=None, cfg=cfg, track_old_alerts=True)
-    client.login(cfg['discord']['discord_token']) # use this if you need to fetch old messages
-    client.load_previous_msgs()
-
 if __name__ == '__main__':
-    # from DiscordAlertsTrader.configurator import cfg, channel_ids
-    # from DiscordAlertsTrader.brokerages import get_brokerage
+    from DiscordAlertsTrader.configurator import cfg, channel_ids
+    from DiscordAlertsTrader.brokerages import get_brokerage
 
-    # bksession = get_brokerage()
-    # client = DiscordBot(brokerage=None, cfg=cfg, track_old_alerts=True)
-    # client.run(cfg['discord']['discord_token'])
-
-    run_in_backtest_mode()
+    bksession = get_brokerage()
+    client = DiscordBot(brokerage=None, cfg=cfg)
+    client.run(cfg['discord']['discord_token'])
