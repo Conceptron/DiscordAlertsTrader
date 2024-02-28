@@ -38,8 +38,8 @@ def parse_symbol(symbol:str):
 
 class ThetaClientAPI:
     def __init__(self):
-         self.client = ThetaClient(launch=False)
-         self.dir_quotes = cfg['general']['data_dir'] + '/hist_quotes'
+        self.client = ThetaClient(launch=False)
+        self.dir_quotes = cfg["general"]["data_dir"] + "/hist_quotes"
 
     def get_hist_quotes(self, symbol: str, date_range: List[date], interval_size: int=1000):
         # symbol: APPL_092623P426
@@ -60,12 +60,12 @@ class ThetaClientAPI:
             df = pd.read_csv(fquote)
             df['date'] = pd.to_datetime(df['timestamp'], unit='s').dt.date
             if drange.start in df['date'].values and drange.end in df['date'].values:
-                print(f"{Fore.YELLOW} Found data for {symbol}: {drange.start} to {drange.end}")
+                # print(f"Found data for {symbol}: {drange.start} to {drange.end}")
                 fetch_data = False
                 data = df[(df['date']>=drange.start) & (df['date']<=drange.end)]
 
         if fetch_data:
-            print(f"{Fore.YELLOW} Fetching data from thetadata for {symbol}: {drange.start} to {drange.end}")
+            print(f"Fetching data from thetadata for {symbol}: {drange.start} to {drange.end}")
             data = self.client.get_hist_option_REST(
                 req=OptionReqType.QUOTE,
                 root=option['symbol'],
@@ -82,10 +82,11 @@ class ThetaClientAPI:
             data['bid'] = data[DataType.BID]
             data['ask'] = data[DataType.ASK]
             data = data[['timestamp', 'bid', 'ask']]
-            data = data[(data['ask']!=0) & (data['bid']!=0)] # remove zero ask
-            
             save_or_append_quote(data, symbol, self.dir_quotes)
-        
+            
+            data = data[(data['ask']!=0)] # remove zero ask
+
+        data.reset_index(drop=True, inplace=True)
         return data
 
     def get_price_at_time(self, symbol: str, unixtime: int, price_type: str="BTO"):
@@ -107,7 +108,6 @@ class ThetaClientAPI:
                     fetch_quote = False
                     quotes = df_date
 
-        
         if fetch_quote:
             date = pd.to_datetime(unixtime, unit='s').date()
             try:
@@ -120,7 +120,7 @@ class ThetaClientAPI:
         idx = quotes['timestamp'].searchsorted(unixtime, side='right')
         if idx < len(quotes):
             return quotes[side].iloc[idx], quotes['timestamp'].iloc[idx] - unixtime
-        
+
         print(f"{Fore.RED} Error: price for {symbol} not found at {datetime.fromtimestamp(unixtime)}")
         return -1, 0
 
